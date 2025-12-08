@@ -1,16 +1,183 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React + TS</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Sales Agent - Gradient Labs Style</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS v4 CDN -->
+  <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
+  
+  <!-- Custom Theme Config -->
+  <style type="text/tailwindcss">
+    @theme {
+      --color-cream: #FDFBF7;
+      --color-beige: #F5F2EB;
+      --color-orange: #FF6B2C;
+      --color-orange-hover: #E85A1F;
+      --color-dark: #1A1A1A;
+      --color-border: #E5E0D5;
+      --font-sans: "Inter", system-ui, sans-serif;
+    }
+    
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--color-cream);
+      color: var(--color-dark);
+    }
+  </style>
+
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body class="h-screen flex flex-col overflow-hidden bg-cream text-dark antialiased">
+
+  <!-- Navbar -->
+  <nav class="h-16 border-b border-border bg-cream/80 backdrop-blur-md sticky top-0 z-50 flex items-center justify-between px-6 lg:px-12">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 bg-orange rounded-lg flex items-center justify-center text-white font-bold text-lg">C</div>
+      <span class="font-bold text-xl tracking-tight">COS<span class="text-orange">Trading</span></span>
+    </div>
+    
+    <!-- Mobile Menu Button -->
+    <button id="mobile-menu-btn" class="md:hidden text-gray-600 p-2" onclick="document.getElementById('mobile-sidebar').classList.toggle('hidden')">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+    </button>
+  </nav>
+
+  <!-- Mobile Sidebar Overlay -->
+  <div id="mobile-sidebar" class="fixed inset-0 z-40 bg-black/50 hidden md:hidden backdrop-blur-sm" onclick="this.classList.add('hidden')">
+    <aside class="w-80 h-full bg-beige flex flex-col shadow-2xl" onclick="event.stopPropagation()">
+      <div class="p-6 border-b border-border/50 flex justify-between items-center">
+        <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider">Conversations</h2>
+        <button onclick="document.getElementById('mobile-sidebar').classList.add('hidden')" class="text-gray-400">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      
+      <!-- Duplicate content logic for mobile simplicity, in real app would reuse -->
+      <div class="p-4 border-b border-border/50">
+          <input type="text" placeholder="Search chats..." class="w-full bg-white border-none rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-orange/20 shadow-sm" />
+      </div>
+
+      <div id="mobile-conversation-list" class="flex-1 overflow-y-auto p-4 space-y-2">
+        <!-- Will be populated by JS -->
+      </div>
+    </aside>
+  </div>
+
+  <!-- Main Content -->
+  <main class="flex-1 flex overflow-hidden relative">
+    
+    <!-- Sidebar -->
+    <aside class="w-80 border-r border-border bg-beige flex flex-col hidden md:flex">
+      <div class="p-6 border-b border-border/50">
+        <h2 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Conversations</h2>
+        <div class="relative">
+          <input type="text" placeholder="Search chats..." class="w-full bg-white border-none rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-orange/20 shadow-sm" />
+          <svg class="w-4 h-4 text-gray-400 absolute right-4 top-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+        </div>
+      </div>
+
+      <div id="conversation-list" class="flex-1 overflow-y-auto p-4 space-y-2">
+        <!-- Conversation Items will be injected here -->
+      </div>
+
+      <div class="p-4 border-t border-border/50">
+        <div class="flex items-center gap-3 p-3 rounded-xl hover:bg-white/50 cursor-pointer transition-colors">
+          <div class="w-10 h-10 rounded-full bg-orange/10 flex items-center justify-center text-orange font-semibold">JD</div>
+          <div class="flex-1">
+            <p class="text-sm font-medium">John Doe</p>
+            <p class="text-xs text-gray-500">Pro Plan • Active</p>
+          </div>
+          <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Chat Area -->
+    <section class="flex-1 flex flex-col bg-white/50 relative">
+      <!-- Chat Header -->
+      <header class="h-20 border-b border-border flex items-center justify-between px-8 bg-cream/50 backdrop-blur-sm z-10">
+        <div class="flex items-center gap-4">
+          <div class="relative">
+            <div class="w-12 h-12 bg-white rounded-full border border-border flex items-center justify-center text-xl shadow-sm" id="chat-avatar">👤</div>
+            <div class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></div>
+          </div>
+          <div>
+            <h1 class="font-bold text-lg text-gray-900" id="chat-name">Select a Customer</h1>
+            <p class="text-sm text-gray-500 flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 bg-green-500 rounded-full"></span>
+              Active Now
+            </p>
+          </div>
+        </div>
+        
+        <div class="flex items-center gap-3" id="header-actions">
+          <!-- Dynamic Action Buttons injected here -->
+        </div>
+      </header>
+
+      <!-- Messages -->
+      <div id="messages-container" class="flex-1 overflow-y-auto p-8 space-y-6 scroll-smooth">
+        <!-- Messages injected here -->
+        <div class="flex flex-col items-center justify-center h-full text-gray-400 opacity-50">
+          <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+          <p>Select a conversation to start chatting</p>
+        </div>
+      </div>
+
+      <!-- Input Area -->
+      <div class="p-6 bg-cream border-t border-border">
+        <div class="max-w-4xl mx-auto relative group">
+          <div class="absolute inset-0 bg-gradient-to-r from-orange/20 to-purple-500/20 rounded-2xl blur opacity-0 group-focus-within:opacity-100 transition-opacity duration-500"></div>
+          <div class="relative flex items-center bg-white rounded-2xl shadow-sm border border-border group-focus-within:border-orange/50 transition-colors p-2">
+            <button class="p-3 text-gray-400 hover:text-orange transition-colors rounded-xl hover:bg-gray-50">
+              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+            </button>
+            <input type="text" id="message-input" placeholder="Type your message..." class="flex-1 bg-transparent border-none focus:ring-0 text-gray-800 placeholder-gray-400 text-base py-3" disabled />
+            <button id="send-button" class="p-3 bg-dark text-white rounded-xl hover:bg-orange transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+              <svg class="w-5 h-5 translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+            </button>
+          </div>
+          <div class="text-center mt-2">
+             <p class="text-xs text-gray-400">AI can make mistakes. Please verify important information.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Booking Modal -->
+  <div id="booking-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 hidden flex items-center justify-center opacity-0 transition-opacity duration-300">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full mx-4 transform scale-95 transition-transform duration-300" id="booking-modal-content">
+      <div class="flex justify-between items-center mb-6">
+        <h3 class="text-xl font-bold text-dark">Book a Meeting</h3>
+        <button onclick="window.closeBookingModal()" class="text-gray-400 hover:text-dark transition-colors">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
+      </div>
+      
+      <p class="text-gray-600 mb-6 text-sm">Please enter your email address to receive the booking confirmation details.</p>
+      
+      <form onsubmit="window.confirmBooking(event)" class="space-y-4">
+        <div>
+          <label for="booking-email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+          <input type="email" id="booking-email" required 
+                 class="w-full px-4 py-3 rounded-xl border border-border focus:ring-2 focus:ring-orange/20 focus:border-orange outline-none transition-all"
+                 placeholder="you@company.com" />
+        </div>
+        
+        <button type="submit" id="confirm-booking-btn" class="w-full bg-orange text-white py-3 rounded-xl font-semibold hover:bg-orange-hover transition-colors shadow-lg shadow-orange/20 flex justify-center items-center gap-2">
+          <span>Confirm Booking</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="./app.js"></script>
+</body>
 </html>

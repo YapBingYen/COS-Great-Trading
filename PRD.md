@@ -1,30 +1,31 @@
 # Product Requirements Document (PRD)
-## Smart Sales Agent – AI-Powered Chat + Booking
+## COS Trading – AI-Powered Sales Assistant
 
 ### 1. Introduction
-This document outlines the requirements for building a "Smart Sales Agent," a simplified AI-powered sales assistant. The system consists of a chat interface where users interact with an AI. The system detects user intent (Sales vs. Support) and triggers specific actions, such as enabling appointment bookings for sales leads.
+This document outlines the requirements for building "COS Trading," an AI-powered sales assistant dashboard. The system features a modern chat interface where users interact with an AI. The system detects user intent (Sales vs. Support) via n8n workflows and enables a seamless email-based appointment booking process for sales-qualified leads.
 
 ### 2. Objective
-The primary goal is to demonstrate an end-to-end flow integrating a frontend chat application with an n8n-based backend that leverages LLMs for intent detection and automation.
+To build a high-fidelity, vanilla JavaScript frontend integrated with an n8n backend that automates sales qualification and booking.
 
 **Key Capabilities:**
-- Use n8n to expose an API that calls an LLM.
-- Connect a frontend chat UI to the API.
-- Trigger an email booking workflow for sales-qualified leads.
-
-**Success Metrics:**
-- ≥90% accuracy on sample intent test set.
-- Booking button only appears for SALES intents.
-- Email workflow fires correctly each time.
-- Full demo works 3 times consecutively without failures.
+- **Real-time Chat**: Connects to n8n Webhooks for AI responses.
+- **Intent Detection**: Analyzes messages to identify "Sales" intent.
+- **Dynamic UI**: Shows a "Book Meeting" button only when sales intent is detected.
+- **Email Booking**: Captures user email via a modal and triggers an n8n email workflow.
 
 ### 3. System Architecture
 
 #### 3.1 Components
-1.  **Frontend**: A dashboard-style chat interface (React or Vanilla JS).
-2.  **Backend**: n8n workflows exposing Webhook APIs.
-3.  **AI Engine**: LLM node within n8n for intent classification and response generation.
-4.  **Automation**: Email service (Gmail/Outlook/SMTP) integration via n8n.
+1.  **Frontend**: 
+    - **Tech Stack**: Vanilla JavaScript (ES6+), HTML5, Tailwind CSS v4 (CDN).
+    - **Theme**: "Gradient Labs" inspired (Cream/Beige/Orange/Dark).
+    - **Hosting**: Vite (Development).
+2.  **Backend**: 
+    - **Platform**: n8n Cloud.
+    - **Workflows**:
+        - `POST /webhook/intent`: Chat & Intent Analysis.
+        - `POST /webhook/send-appointment`: Email Automation.
+3.  **AI Engine**: OpenAI (via n8n) for intent classification and natural language responses.
 
 ### 4. Functional Requirements
 
@@ -34,80 +35,83 @@ The primary goal is to demonstrate an end-to-end flow integrating a frontend cha
 - **Endpoint**: `POST /webhook/intent`
 - **Input Payload**: `{ "message": "user text here" }`
 - **Logic**:
-    - Analyze the message using an LLM node.
-    - Classify intent as either `SALES` or `SUPPORT`.
-    - Generate an appropriate text response.
+    - LLM analyzes message for context.
+    - Returns JSON with `reply` (text) and `sales_intent` (boolean/string).
 - **Output Format**:
   ```json
   {
-    "reply": "The AI response text...",
-    "intent": "SALES", // or "SUPPORT"
-    "confidence": 0.98
+    "reply": "Our team plan starts at $49/mo...",
+    "sales_intent": true
   }
   ```
 
 **4.1.2 Booking API**
 - **Endpoint**: `POST /webhook/send-appointment`
-- **Input Payload**: `{}` or simple customer details.
+- **Input Payload**: 
+  ```json
+  {
+    "customer": "Customer A",
+    "email": "user@example.com"
+  }
+  ```
 - **Logic**:
-    - Trigger an email node.
-    - Send a confirmation email with a subject "Appointment Confirmed" and a body containing a mock meeting link.
-- **Output**: Success status to the frontend.
+    - Receives email address from frontend.
+    - Sends a confirmation email to the provided address via Gmail/SMTP node.
+- **Output**: Success status 200 OK.
 
-#### 4.2 Frontend (Chat UI)
+#### 4.2 Frontend (UI/UX)
 
-**4.2.1 Layout**
-- **Sidebar**: List of mock users (e.g., "Customer A", "Customer B"). Clicking switches the active conversation.
+**4.2.1 Design System**
+- **Theme**: COS Trading (Gradient Labs clone).
+- **Colors**: Cream (`#FDFBF7`), Beige (`#F5F2EB`), Orange (`#FF6B2C`), Dark (`#1A1A1A`).
+- **Typography**: Inter font family.
+
+**4.2.2 Layout & Features**
+- **Navbar**: Minimalist branding ("COS Trading" with logo). No extra links.
+- **Sidebar**: List of mock customers (Customer A, B, C) with active states.
 - **Chat Area**:
-    - Message bubbles (User right, AI left).
-    - Scrollable history.
-    - Input box and Send button.
+    - Polished message bubbles (User: Dark, AI: White).
+    - Typing indicators (animated dots).
+    - Auto-scroll to bottom.
+- **Booking Modal**:
+    - Triggered by "Book Meeting" button.
+    - Captures User Email.
+    - Handles loading states ("Sending...") and success feedback ("✓ Confirmed").
 
-**4.2.2 Interaction Logic**
-1.  **Sending Messages**:
-    - User types and sends a message.
-    - UI displays the user message immediately.
-    - Application POSTs the message to the **Intent Detection API**.
-    - UI displays the returned `reply` from the AI.
+**4.2.3 Interaction Logic**
+1.  **Chat Flow**:
+    - User sends message -> API Call to n8n.
+    - If API fails (e.g., 429 Error), falls back to **Mock Mode** automatically.
+    - Displays AI response.
+2.  **Sales Trigger**:
+    - If `sales_intent: true` is returned (or mocked), the **"Book Meeting"** button appears in the chat header.
+3.  **Booking Flow**:
+    - User clicks "Book Meeting" -> Modal opens.
+    - User enters email -> Clicks Confirm.
+    - App calls `/webhook/send-appointment`.
+    - Modal closes -> Success message added to chat.
 
-2.  **Intent Handling**:
-    - If `intent` is `SALES`: Display a **"Book Appointment"** button in the chat interface.
-    - If `intent` is `SUPPORT`: Do not show the button.
-    - **Hot Lead Visuals**: Optionally highlight messages indicating high purchase intent (e.g., "I'd like to pay now").
+### 5. Technical Implementation Details
 
-3.  **Booking Action**:
-    - User clicks **"Book Appointment"**.
-    - Application POSTs to the **Booking API**.
-    - Upon success, UI displays a system message: *"Booking Confirmed – A confirmation email has been sent."*
+**5.1 File Structure**
+```
+/
+├── index.html      # Main entry (DOM structure, Modal, Tailwind CDN)
+├── style.css       # Custom animations (fade-in, typing) & overrides
+├── app.js          # Logic (State, API calls, Event Listeners)
+├── .env            # Webhook URLs (VITE_N8N_*)
+└── package.json    # Dev dependencies (Vite)
+```
 
-#### 4.3 Mobile Responsiveness
-- On small screens:
-    - Sidebar should be collapsible or displayed as a top menu.
-    - Chat interface must remain usable and readable.
+**5.2 Environment Variables**
+- `VITE_N8N_INTENT_WEBHOOK`: Production URL for chat.
+- `VITE_N8N_BOOKING_WEBHOOK`: Production URL for email.
 
-### 5. Scenarios & Expected Behavior
+**5.3 Mock Mode**
+- Built-in failover in `app.js` to handle API quotas or downtime.
+- Simulates network delay and returns hardcoded responses for testing.
 
-| User Input | Expected Intent | System Behavior |
-| :--- | :--- | :--- |
-| "What is the best way to contact support?" | **SUPPORT** | Show AI reply only. No booking button. |
-| "What is the pricing for the team package?" | **SALES** | Show AI reply + **Book Appointment** button. |
-| "I'd like to pay now." | **SALES** | Show AI reply + **Book Appointment** button + Hot Lead highlight. |
-
-### 6. Technical Constraints & Risks
-
-**Constraints:**
-- **Frontend**: React or Plain JavaScript (HTML/CSS).
-- **Backend**: n8n (Cloud or Self-hosted).
-- **No Database Required**: Frontend can rely on local state/mock data for the session.
-
-**Risks & Mitigations:**
-- **LLM Misclassification**: Implement confidence thresholding in the backend if possible, or refine prompt instructions.
-- **API Limits**: Ensure n8n workflow handles timeouts gracefully.
-- **Data Persistence**: Since no database is required, refreshing the page will reset the chat. This is acceptable for the POC.
-
-### 7. Future Enhancements
-- Real calendar scheduling integration (e.g., Calendly).
-- CRM integration (e.g., HubSpot, Salesforce).
-- Rich UI themes and customization.
-- Multi-intent support.
-- Conversation history storage.
+### 6. Future Enhancements
+- [ ] Persist chat history to local storage.
+- [ ] Add real-time websocket connection for faster typing streaming.
+- [ ] Integrate Calendar API for actual slot selection.
