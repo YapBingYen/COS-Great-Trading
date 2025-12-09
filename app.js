@@ -9,7 +9,7 @@ const state = {
   messages: {
     'cust_a': [
       { id: 1, role: 'ai', content: 'Hello! How can I help you today?', timestamp: new Date(Date.now() - 60000).toISOString() },
-      { id: 2, role: 'user', content: 'I am interested in your team plan pricing.', timestamp: new Date().toISOString(), salesIntent: true }
+      { id: 2, role: 'user', content: 'I am interested in your team plan pricing.', timestamp: new Date().toISOString(), salesIntent: false }
     ],
     'cust_b': [
       { id: 1, role: 'ai', content: 'Hi there! What brings you here?', timestamp: new Date(Date.now() - 1000000).toISOString() }
@@ -21,9 +21,9 @@ const state = {
 
 // Config
 const CONFIG = {
-  webhookUrl: 'https://yapbingyen.app.n8n.cloud/webhook-test/intent',
-  bookingUrl: 'https://yapbingyen.app.n8n.cloud/webhook/send-appointment',
-  mockMode: true // Enable mock to force local responses
+  webhookUrl: import.meta?.env?.VITE_N8N_INTENT_WEBHOOK || 'https://yapbingyen.app.n8n.cloud/webhook/intent',
+  bookingUrl: import.meta?.env?.VITE_N8N_BOOKING_WEBHOOK || 'https://yapbingyen.app.n8n.cloud/webhook/send-appointment',
+  mockMode: false
 };
 
 // DOM Elements
@@ -102,6 +102,7 @@ function renderMessages() {
           ${msg.content}
           ${msg.salesIntent ? '<div class="mt-2 text-xs font-bold text-orange flex items-center gap-1">🔥 Hot Lead</div>' : ''}
         </div>
+        ${msg.role === 'ai' && msg.salesIntent ? '<button onclick="window.openBookingModal()" class="mt-2 bg-orange text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-orange-hover transition-colors shadow-sm">Book Meeting</button>' : ''}
         <span class="text-[10px] text-gray-400 mt-1.5 px-1">
           ${new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </span>
@@ -131,19 +132,7 @@ function renderHeader() {
   els.chatName.textContent = customer.name;
   els.chatAvatar.textContent = customer.avatar;
   
-  // Check for sales intent in messages to show Booking button
-  const hasSalesIntent = state.messages[state.activeCustomerId]?.some(m => m.salesIntent === true);
-  
-  if (hasSalesIntent) {
-    els.headerActions.innerHTML = `
-      <button onclick="window.openBookingModal()" class="bg-orange text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-orange-hover transition-colors shadow-md flex items-center gap-2 animate-fade-in">
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-        Book Meeting
-      </button>
-    `;
-  } else {
-    els.headerActions.innerHTML = '';
-  }
+  els.headerActions.innerHTML = '';
 }
 
 // Logic
@@ -275,17 +264,18 @@ async function handleSendMessage() {
 
     } catch (err) {
       console.warn('API Error, falling back to mock:', err);
-      if (CONFIG.mockMode) {
-        await new Promise(r => setTimeout(r, 1500)); // Simulate delay
-        response = getMockResponse(text);
-      } else {
-        throw err;
-      }
+      await new Promise(r => setTimeout(r, 1500));
+      response = getMockResponse(text);
+    }
+
+    // Normalize array responses from n8n
+    if (Array.isArray(response)) {
+      response = response[0] || {};
     }
 
     // Process Response
     const aiText = response?.reply || response?.output || response?.message || "I received your message.";
-    const isSales = response?.sales_intent || response?.intent === 'sales' || false;
+    const isSales = Boolean(response?.sales_intent) || String(response?.intent || '').toLowerCase() === 'sales';
 
     state.isTyping = false;
     addMessage('ai', aiText, isSales);
@@ -317,7 +307,7 @@ function addMessage(role, content, salesIntent = false) {
 
   renderMessages();
   renderConversations(); // To update last message
-  if (salesIntent) renderHeader();
+  renderHeader();
 }
 
 function getMockResponse(input) {
