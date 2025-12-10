@@ -39,6 +39,8 @@ const els = {
   bookingModal: document.getElementById('booking-modal'),
   bookingModalContent: document.getElementById('booking-modal-content'),
   bookingEmailInput: document.getElementById('booking-email'),
+  bookingDateInput: document.getElementById('booking-date'),
+  bookingTimeInput: document.getElementById('booking-time'),
   confirmBookingBtn: document.getElementById('confirm-booking-btn')
 };
 
@@ -100,7 +102,7 @@ function renderMessages() {
             : 'bg-white border border-border text-gray-800 rounded-bl-sm ' + (msg.salesIntent ? 'border-orange/50 ring-2 ring-orange/10' : '')
         }">
           ${msg.content}
-          ${msg.salesIntent ? '<div class="mt-2 text-xs font-bold text-orange flex items-center gap-1">🔥 Hot Lead</div>' : ''}
+          ${msg.hotLead ? '<div class="mt-2 text-xs font-bold text-orange flex items-center gap-1">🔥 Hot Lead</div>' : ''}
         </div>
         ${msg.role === 'ai' && msg.salesIntent ? '<button onclick="window.openBookingModal()" class="mt-2 bg-orange text-white px-4 py-2 rounded-lg text-xs font-semibold hover:bg-orange-hover transition-colors shadow-sm">Book Meeting</button>' : ''}
         <span class="text-[10px] text-gray-400 mt-1.5 px-1">
@@ -160,6 +162,11 @@ window.openBookingModal = () => {
     els.bookingModalContent.classList.add('scale-100');
   }, 10);
   els.bookingEmailInput.focus();
+  const today = new Date();
+  const yyyy = today.getFullYear();
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const dd = String(today.getDate()).padStart(2, '0');
+  if (els.bookingDateInput) els.bookingDateInput.min = `${yyyy}-${mm}-${dd}`;
 };
 
 window.closeBookingModal = () => {
@@ -174,7 +181,9 @@ window.closeBookingModal = () => {
 window.confirmBooking = async (e) => {
   e.preventDefault();
   const email = els.bookingEmailInput.value;
-  if (!email) return;
+  const date = els.bookingDateInput?.value;
+  const time = els.bookingTimeInput?.value;
+  if (!email || !date || !time) return;
 
   const btn = els.confirmBookingBtn;
   const originalContent = btn.innerHTML;
@@ -189,7 +198,10 @@ window.confirmBooking = async (e) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ 
         customer: state.conversations.find(c => c.id === state.activeCustomerId).name,
-        email: email 
+        email: email,
+        date,
+        time,
+        datetime_iso: new Date(`${date}T${time}:00`).toISOString()
       })
     });
     
@@ -207,9 +219,11 @@ window.confirmBooking = async (e) => {
         btn.disabled = false;
         btn.classList.remove('opacity-75');
         els.bookingEmailInput.value = ''; // Clear input
+        if (els.bookingDateInput) els.bookingDateInput.value = '';
+        if (els.bookingTimeInput) els.bookingTimeInput.value = '';
         
         // Add confirmation message to chat
-        addMessage('ai', `I've sent the meeting details to ${email}. Check your inbox!`);
+        addMessage('ai', `I've sent the meeting details to ${email} for ${date} ${time}. Check your inbox!`);
       }, 300);
     }, 1500);
 
@@ -276,9 +290,17 @@ async function handleSendMessage() {
     // Process Response
     const aiText = response?.reply || response?.output || response?.message || "I received your message.";
     const isSales = Boolean(response?.sales_intent) || String(response?.intent || '').toLowerCase() === 'sales';
+    const confidence = Number(response?.confidence ?? 0);
+    const textLower = text.toLowerCase();
+    const strongPhrases = ['pay now','buy','purchase','checkout','subscribe','sign up','order','payment','invoice','upgrade'];
+    const weakSalesTerms = ['price','pricing','cost','quote','plan','rates'];
+    const isStrongIntent = strongPhrases.some(p => textLower.includes(p));
+    const isWeakSales = weakSalesTerms.some(p => textLower.includes(p));
+    const HOT_LEAD_THRESHOLD = 0.85;
+    const isHotLead = isSales && (isStrongIntent || (!isWeakSales && confidence >= HOT_LEAD_THRESHOLD));
 
     state.isTyping = false;
-    addMessage('ai', aiText, isSales);
+    addMessage('ai', aiText, isSales, isHotLead);
 
   } catch (error) {
     state.isTyping = false;
@@ -287,7 +309,7 @@ async function handleSendMessage() {
   }
 }
 
-function addMessage(role, content, salesIntent = false) {
+function addMessage(role, content, salesIntent = false, hotLead = false) {
   if (!state.messages[state.activeCustomerId]) state.messages[state.activeCustomerId] = [];
   
   state.messages[state.activeCustomerId].push({
@@ -295,7 +317,8 @@ function addMessage(role, content, salesIntent = false) {
     role,
     content,
     timestamp: new Date().toISOString(),
-    salesIntent
+    salesIntent,
+    hotLead
   });
 
   // Update last message in sidebar
@@ -312,13 +335,16 @@ function addMessage(role, content, salesIntent = false) {
 
 function getMockResponse(input) {
   const lower = input.toLowerCase();
+  if (lower.includes('pay') || lower.includes('purchase') || lower.includes('buy') || lower.includes('subscribe') || lower.includes('checkout') || lower.includes('order')) {
+    return { reply: "Great! I can help you complete the purchase.", sales_intent: true, confidence: 0.95 };
+  }
   if (lower.includes('price') || lower.includes('cost') || lower.includes('plan')) {
-    return { reply: "Our Team plan starts at $49/mo per user. Would you like to see a full breakdown?", sales_intent: true };
+    return { reply: "Our Team plan starts at $49/mo per user. Would you like to see a full breakdown?", sales_intent: true, confidence: 0.6 };
   }
   if (lower.includes('hello') || lower.includes('hi')) {
-    return { reply: "Hello! How can I assist you with your sales process today?", sales_intent: false };
+    return { reply: "Hello! How can I assist you with your sales process today?", sales_intent: false, confidence: 0.2 };
   }
-  return { reply: "I understand. Could you tell me more about your requirements?", sales_intent: false };
+  return { reply: "I understand. Could you tell me more about your requirements?", sales_intent: false, confidence: 0.2 };
 }
 
 // Helpers
