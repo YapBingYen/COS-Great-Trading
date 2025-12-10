@@ -1,0 +1,260 @@
+{
+  "name": "Booking Email Sender",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send-appointment",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -176,
+        48
+      ],
+      "name": "Webhook",
+      "id": "673abdac-f6c3-4856-b5c8-af44c45db49c",
+      "webhookId": "a8cbbe74-0113-4bca-92ec-ffc7a3270025"
+    },
+    {
+      "parameters": {
+        "fromEmail": "stevenyap1903@gmail.com",
+        "toEmail": "={{ $('Webhook').item.json.body.email }}",
+        "subject": "Appointment Confirmed",
+        "text": "=Customer: {{ $json.customer }}\nDate/Time: {{ $json.slot }}\nUTC: {{ $json.slot_utc }}\n\nYour appointment has been confirmed! Here's your meeting link: https://meet.google.com/mock-link-12345",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [
+        544,
+        32
+      ],
+      "name": "Send Email",
+      "id": "caa9f96a-c63f-45c3-bc4e-7446d5a61dd9",
+      "credentials": {
+        "smtp": {
+          "id": "dePfBOrRXqXDRICs",
+          "name": "SMTP account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "=={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "=application/json"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        960,
+        32
+      ],
+      "name": "Respond to Webhook",
+      "id": "82dcc6ff-2190-48f0-9c68-8bc6e66f11d2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "2c0b552e-0a68-40cb-b156-0ff9098a93df",
+              "leftValue": "=={{ $json.ok }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        208,
+        96
+      ],
+      "id": "33e84c3f-6aaa-474f-b45b-f6eee587ebc7",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: false, error: \"Missing fields: require customer, email, date, time\" } }}",
+        "options": {
+          "responseCode": 400,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "=Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        560,
+        256
+      ],
+      "id": "e771e810-43f0-4868-9f47-49fdcdf697f5",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const src = $json.body ?? $json;\n\nconst customer = String(src.customer ?? '').trim();\nconst email = String(src.email ?? '').trim();\nconst date = String(src.date ?? '').trim();\nconst time = String(src.time ?? '').trim();\n\nconst datetime_iso =\n  src.datetime_iso ??\n  (date && time ? new Date(`${date}T${time}:00`).toISOString() : '');\n\nconst ok = Boolean(customer && email && date && time && datetime_iso);\n\nconst slot = `${date} ${time}`;\nconst slot_utc = datetime_iso ? new Date(datetime_iso).toUTCString() : '';\n\nreturn {\n  customer,\n  email,\n  date,\n  time,\n  datetime_iso,\n  slot,\n  slot_utc,\n  ok\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16,
+        48
+      ],
+      "id": "fd2fdef0-e008-464b-90cc-57f0d7f5faac",
+      "name": "NormalizeBooking"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a2b1a913-0e32-46e0-849e-0602a1d518ae",
+              "name": "ok",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "e365be2b-a840-4a2b-a2ca-7f4404e102b9",
+              "name": "scheduled.date",
+              "value": "=={{ $node['NormalizeBooking'].json.date }}",
+              "type": "string"
+            },
+            {
+              "id": "7b894e17-20d6-42f7-8326-30147809cefb",
+              "name": "scheduled.time",
+              "value": "=={{ $node['NormalizeBooking'].json.time }}",
+              "type": "string"
+            },
+            {
+              "id": "51c2aa76-2dfb-4d61-8c0e-15921ccb5cb6",
+              "name": "scheduled.datetime_iso",
+              "value": "=={{ $node['NormalizeBooking'].json.datetime_iso }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        752,
+        32
+      ],
+      "id": "302c5a8c-a4a0-4c1a-b952-275f9d172b66",
+      "name": "PrepareResponse"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "NormalizeBooking",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email": {
+      "main": [
+        [
+          {
+            "node": "PrepareResponse",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "NormalizeBooking": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PrepareResponse": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "5d5f183d-b9bf-4738-aad9-41b87b4a58f3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9fdc877eb32a4899d3c31a8547496976d7468310b45fda63fde2c425aa9f26df"
+  },
+  "id": "6slpTYGJ9mRo52hB",
+  "tags": []
+}

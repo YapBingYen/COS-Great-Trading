@@ -1,0 +1,138 @@
+{
+  "name": "Intent Detection API",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "intent",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        224,
+        384
+      ],
+      "name": "Webhook",
+      "id": "5f755895-e551-45dc-9b51-216cfce615f0",
+      "webhookId": "24b72a2e-2cb8-4b59-b634-c9ca8d9b171e"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.0-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.0-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "Return ONLY JSON: {\"reply\":\"<text>\",\"intent\":\"SALES|SUPPORT\",\"confidence\":0.0-1.0}. No markdown, no code fences, no extra text. Do not quote numbers.",
+              "role": "model"
+            },
+            {
+              "content": "={{ $('Webhook').item.json.body.message }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1,
+      "position": [
+        464,
+        384
+      ],
+      "id": "130c0ad9-a662-43b1-8906-d40d34853850",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "vWvHjbJUzeTUPyn1",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { reply: $json.reply, intent: $json.intent, confidence: $json.confidence } }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1008,
+        384
+      ],
+      "name": "Respond to Webhook",
+      "id": "eabc6597-a5c2-4855-b457-893458579248"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst j = items[0]?.json ?? {};\nconst text =\n  j?.content?.parts?.[0]?.text ??\n  j?.parts?.[0]?.text ??\n  j?.text ??\n  JSON.stringify(j || {});\n\nfunction extractJson(s) {\n  if (typeof s !== 'string') return s;\n  const stripped = s.replace(/```json|```/g, '').trim();\n  const m = stripped.match(/\\{[\\s\\S]*\\}/);\n  const candidate = m ? m[0] : stripped;\n  try { return JSON.parse(candidate); } catch { return {}; }\n}\n\nlet p = extractJson(text);\np = Array.isArray(p) ? (p[0] || {}) : p;\n\nconst rawIntent = String(p.intent || '').trim().toUpperCase();\nconst intent = rawIntent === 'SALES' ? 'SALES' : rawIntent === 'SUPPORT' ? 'SUPPORT' : 'SUPPORT';\nconst confidenceNum = Number(p.confidence);\nconst confidence = Number.isFinite(confidenceNum) ? confidenceNum : 0;\n\nconst out = {\n  reply: String(p.reply || ''),\n  intent,\n  confidence\n};\n\nreturn [{ json: out }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        384
+      ],
+      "id": "7ff18fc6-266d-4213-b05c-0b08aa6ccea3",
+      "name": "Code in JavaScript1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "8768cf84-667f-4e53-95e2-b70e08cb9805",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9fdc877eb32a4899d3c31a8547496976d7468310b45fda63fde2c425aa9f26df"
+  },
+  "id": "6D0BkTfAe6cQTaaE",
+  "tags": []
+}
